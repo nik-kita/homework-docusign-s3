@@ -37,6 +37,13 @@
         "jest": true
       },
       "rules": {}
+    },
+    {
+      "files": ["*.ts"],
+      "rules": {
+        "quotes": ["error", "single"],
+        "semi": ["error", "always"]
+      }
     }
   ]
 }
