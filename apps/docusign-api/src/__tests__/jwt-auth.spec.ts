@@ -25,13 +25,14 @@ describe('JWT auth', () => {
 
   it('Should make admin auth request', async () => {
     const apiClient = new ApiClient();
+    const SCOPES = ['signature', 'impersonation'];
 
-    apiClient.setOAuthBasePath(DS_AUTH_SERVICE_PRODUCTION_HOST.replace('https://', ''));
+    apiClient.setOAuthBasePath(DS_AUTH_SERVICE_DEVELOPMENT_HOST.replace('https://', ''));
 
     const args = [
+      DS_AUTH_JWT_INTEGRATION_KEY,
       DS_USER_ID,
-      'd734e493-499b-47f0-a049-defe436c9b5c',
-      ['signature', 'impersonation'] as string[],
+      SCOPES,
       readFileSync(join(process.cwd(), 'secrets/docusign/jwt-auth/private-key.pem')),
       10 * 60] as const;
 
@@ -44,8 +45,20 @@ describe('JWT auth', () => {
       expect(res).toBeDefined();
 
     } catch (error) {
-      console.error(error);
-      throw error;
+      const body = error.response && error.response.body;
+
+      if (body) {
+        // The user needs to grant consent
+        if (body.error && body.error === 'consent_required') {
+          const consentUrl = `${DS_AUTH_SERVICE_DEVELOPMENT_HOST}/oauth/auth?response_type=code&` +
+            `scope=${SCOPES.join('+')}&client_id=${DS_AUTH_JWT_INTEGRATION_KEY}&` +
+            `redirect_uri=${'http://localhost:4200/docusign-redirect'}`;
+          console.warn(consentUrl);
+        } else {
+          console.error(error);
+          throw error;
+        }
+      }
     }
-  }, 60 * 1000 * 10);
+  }, 60 * 1000 * 3);
 });
