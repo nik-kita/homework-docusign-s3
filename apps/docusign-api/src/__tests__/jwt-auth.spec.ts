@@ -40,10 +40,7 @@ describe('JWT auth', () => {
 
       const res = await apiClient.requestJWTUserToken(...args);
 
-      console.log(res);
-
-      expect(res).toBeDefined();
-
+      expect(res.body.access_token).toBeDefined();
     } catch (error) {
       const body = error.response && error.response.body;
 
@@ -53,7 +50,12 @@ describe('JWT auth', () => {
           const consentUrl = `${DS_AUTH_SERVICE_DEVELOPMENT_HOST}/oauth/auth?response_type=code&` +
             `scope=${SCOPES.join('+')}&client_id=${DS_AUTH_JWT_INTEGRATION_KEY}&` +
             `redirect_uri=${'http://localhost:4200/docusign-redirect'}`;
+          console.warn('='.repeat(20));
+          console.warn('\n'.repeat(4));
+          console.warn('YOU SHOULD GRANT CONSENT TO THE APPLICATION BY THIS URL (then repeat test');
           console.warn(consentUrl);
+          console.warn('\n'.repeat(4));
+          console.warn('='.repeat(20));
         } else {
           console.error(error);
           throw error;
