@@ -15,135 +15,81 @@ type MakeEnvelopeArgs = {
   ccEmail: string,
   ccName: string,
   status: string,
-  pathToDoc2File: string,
-  pathToDoc3File: string,
 };
 
 @Injectable()
 export class SignViaEmailService {
-  /**
- * This function does the work of creating the envelope
- */
   async sendEnvelope(args: {
     basePath: string,
     accessToken: string,
     accountId: string,
     envelopeArgs: MakeEnvelopeArgs,
   }) {
-    // Data for this method
-    // args.basePath
-    // args.accessToken
-    // args.accountId
-
     const dsApiClient = new ApiClient();
+
     dsApiClient.setBasePath(args.basePath);
     dsApiClient.addDefaultHeader('Authorization', 'Bearer ' + args.accessToken);
+
     const envelopesApi = new EnvelopesApi(dsApiClient);
+    const envelope = this.makeEnvelope(args.envelopeArgs);
     let results = null;
 
-    // Step 1. Make the envelope request body
-    const envelope = this.makeEnvelope(args.envelopeArgs);
-
-    // Step 2. call Envelopes::create API method
-    // Exceptions will be caught by the calling function
+    console.log(args);
     results = await envelopesApi.createEnvelope(args.accountId, {
       envelopeDefinition: envelope,
     });
+
+    console.info(results);
+
     const envelopeId = results.envelopeId;
 
-    console.log(`Envelope was created. EnvelopeId ${envelopeId}`);
     return { envelopeId: envelopeId };
   }
   private makeEnvelope(args: MakeEnvelopeArgs): Envelope {
-    const doc2DocxBytes = readFileSync(args.pathToDoc2File);
-    const doc3PdfBytes = readFileSync(args.pathToDoc3File);
-
-    // create the envelope definition
     const env = new docusign.EnvelopeDefinition();
+
     env.emailSubject = 'Please sign this document set';
 
-    // add the documents
-    const doc1 = new docusign.Document(),
-      doc1b64 = Buffer.from(this.generateHtml(args)).toString('base64'),
-      doc2b64 = Buffer.from(doc2DocxBytes).toString('base64'),
-      doc3b64 = Buffer.from(doc3PdfBytes).toString('base64');
+    const doc1 = new docusign.Document();
+    const doc1b64 = Buffer.from(this.generateHtml(args)).toString('base64');
+
     doc1.documentBase64 = doc1b64;
-    doc1.name = 'Order acknowledgement'; // can be different from actual file name
-    doc1.fileExtension = 'html'; // Source data format. Signed docs are always pdf.
-    doc1.documentId = '1'; // a label used to reference the doc
+    doc1.name = 'Order acknowledgement';
+    doc1.fileExtension = 'html';
+    doc1.documentId = '1';
 
-    // Alternate pattern: using constructors for docs 2 and 3...
-    const doc2 = new docusign.Document.constructFromObject({
-      documentBase64: doc2b64,
-      name: 'Battle Plan', // can be different from actual file name
-      fileExtension: 'docx',
-      documentId: '2',
-    });
+    env.documents = [doc1];
 
-    const doc3 = new docusign.Document.constructFromObject({
-      documentBase64: doc3b64,
-      name: 'Lorem Ipsum', // can be different from actual file name
-      fileExtension: 'pdf',
-      documentId: '3',
-    });
-
-    // The order in the docs array determines the order in the envelope
-    env.documents = [doc1, doc2, doc3];
-
-    // create a signer recipient to sign the document, identified by name and email
-    // We're setting the parameters via the object constructor
     const signer1 = docusign.Signer.constructFromObject({
       email: args.signerEmail,
       name: args.signerName,
       recipientId: '1',
       routingOrder: '1',
     });
-    // routingOrder (lower means earlier) determines the order of deliveries
-    // to the recipients. Parallel routing order is supported by using the
-    // same integer as the order for two or more recipients.
-
-    // create a cc recipient to receive a copy of the documents, identified by name and email
-    // We're setting the parameters via setters
     const cc1 = new docusign.CarbonCopy();
+
     cc1.email = args.ccEmail;
     cc1.name = args.ccName;
     cc1.routingOrder = '2';
     cc1.recipientId = '2';
 
-    // Create signHere fields (also known as tabs) on the documents,
-    // We're using anchor (autoPlace) positioning
-    //
-    // The DocuSign platform searches throughout your envelope's
-    // documents for matching anchor strings. So the
-    // signHere2 tab will be used in both document 2 and 3 since they
-    // use the same anchor string for their "signer 1" tabs.
     const signHere1 = docusign.SignHere.constructFromObject({
       anchorString: '**signature_1**',
       anchorYOft: '10',
       anchorUnits: 'pixels',
       anchorXOft: '20',
-    }),
-      signHere2 = docusign.SignHere.constructFromObject({
-        anchorString: '/sn1/',
-        anchorYOft: '10',
-        anchorUnits: 'pixels',
-        anchorXOft: '20',
-      });
-    // Tabs are set per recipient / signer
+    });
+
     const signer1Tabs = docusign.Tabs.constructFromObject({
-      signHereTabs: [signHere1, signHere2],
+      signHereTabs: [signHere1],
     });
     signer1.tabs = signer1Tabs;
-
-    // Add the recipients to the envelope object
     const recipients = docusign.Recipients.constructFromObject({
       signers: [signer1],
       carbonCopies: [cc1],
     });
-    env.recipients = recipients;
 
-    // Request that the envelope be sent by setting |status| to "sent".
-    // To request that the envelope be created as a draft, set to "created"
+    env.recipients = recipients;
     env.status = args.status;
 
     return env;

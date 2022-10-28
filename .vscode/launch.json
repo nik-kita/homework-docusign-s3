@@ -6,7 +6,13 @@
   "configurations": [
     {
       "command": "pnpm nx run docusign-api:test --skip-nx-cache",
-      "name": "pnpm nx run docusign-api:test --skip-nx-cache",
+      "name": "TEST => docusign-api",
+      "request": "launch",
+      "type": "node-terminal"
+    },
+    {
+      "command": "pnpm nx run test --testPathPattern=sign-via-email --skip-nx-cache",
+      "name": "TEST => sign-via-email.spec.ts",
       "request": "launch",
       "type": "node-terminal"
     }
