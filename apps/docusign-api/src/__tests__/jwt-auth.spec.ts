@@ -1,12 +1,10 @@
+import { DS_AUTH_SERVICE_DEVELOPMENT_HOST } from '@homework-docusign-s3/types';
+import { ApiClient } from 'docusign-esign';
 import { config } from 'dotenv';
-import { AuthenticationApi, ApiClient } from 'docusign-esign';
-import { DS_AUTH_SERVICE_DEVELOPMENT_HOST, DS_AUTH_SERVICE_PRODUCTION_HOST } from '@homework-docusign-s3/types';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-describe('JWT auth', () => {
+describe('Docusign jwt auth', () => {
   let DS_USER_ID: string;
-  let DS_API_ACCOUNT_ID: string;
-  let DS_AUTH_JWT_KEY_PAIR_ID: string;
   let DS_AUTH_JWT_INTEGRATION_KEY: string;
   let DS_AUTH_JWT_REDIRECT_URL: string;
 
@@ -15,15 +13,13 @@ describe('JWT auth', () => {
     config({ path: join(process.cwd(), 'envs/.red.env') });
     ({
       DS_USER_ID,
-      DS_API_ACCOUNT_ID,
-      DS_AUTH_JWT_KEY_PAIR_ID,
       DS_AUTH_JWT_INTEGRATION_KEY,
       DS_AUTH_JWT_REDIRECT_URL,
     } = process.env);
   });
 
 
-  it('Should make admin auth request', async () => {
+  it('Check credentials, make sdk.requestJWTUserToken()', async () => {
     const apiClient = new ApiClient();
     const SCOPES = ['signature', 'impersonation'];
 
@@ -34,7 +30,8 @@ describe('JWT auth', () => {
       DS_USER_ID,
       SCOPES,
       readFileSync(join(process.cwd(), 'secrets/docusign/jwt-auth/private-key.pem')),
-      10 * 60] as const;
+      0, // ti looks like this parameter is ignored during jwt auth flow
+    ] as const;
 
     try {
 
@@ -49,15 +46,21 @@ describe('JWT auth', () => {
         if (body.error && body.error === 'consent_required') {
           const consentUrl = `${DS_AUTH_SERVICE_DEVELOPMENT_HOST}/oauth/auth?response_type=code&` +
             `scope=${SCOPES.join('+')}&client_id=${DS_AUTH_JWT_INTEGRATION_KEY}&` +
-            `redirect_uri=${'http://localhost:4200/docusign-redirect'}`;
-          console.warn('='.repeat(20));
-          console.warn('\n'.repeat(4));
-          console.warn('YOU SHOULD GRANT CONSENT TO THE APPLICATION BY THIS URL (then repeat test');
-          console.warn(consentUrl);
-          console.warn('\n'.repeat(4));
-          console.warn('='.repeat(20));
+            `redirect_uri=${DS_AUTH_JWT_REDIRECT_URL}`;
+
+          console.warn(
+            '='.repeat(20),
+            '\nYOU SHOULD GRANT CONSENT TO THE APPLICATION BY THIS URL (then repeat test)',
+            '\n'.repeat(4),
+            consentUrl,
+            '\n'.repeat(4),
+            '='.repeat(20),
+          );
+
+          expect('here').not.toBe('here');
         } else {
           console.error(error);
+
           throw error;
         }
       }
